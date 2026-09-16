@@ -1,0 +1,2 @@
+Build/hk.data filter=lfs diff=lfs merge=lfs -text
+Build/hk.wasm filter=lfs diff=lfs merge=lfs -text

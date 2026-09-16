@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+ 
+  <meta charset="utf-8">
+  <title>Unity WebGL Player | Hollow Knight</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #000;
+      overflow: hidden;
+    }
+    #loading-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font: 24px Arial;
+    }
+    #unity-canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    #unity-mobile-warning {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      background: rgba(0, 0, 0, 0.9);
+      padding: 20px;
+      border-radius: 8px;
+      font: 14px Arial;
+    }
+    #fps-graph {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      width: 200px;
+      height: 70px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 6px;
+      padding: 10px;
+      z-index: 9999;
+      transition: 0.3s;
+    }
+    #fps-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .savebtn {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      padding: 10px 18px;
+      cursor: pointer;
+      background: rgba(50, 50, 50, 0.85);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      font: 14px Arial;
+      z-index: 9999;
+      transition: 0.3s;
+    }
+    .savebtn:hover {
+      background: rgba(70, 70, 70, 0.95);
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-text">Git Gud</div>
+  <div id="unity-mobile-warning">WebGL not supported on mobile</div>
+  <canvas id="unity-canvas"></canvas>
+  <div id="fps-graph" style="display: none;">
+    <canvas id="fps-canvas"></canvas>
+  </div>
+<script>
+  (function() {
+    const originalGetGamepads = navigator.getGamepads.bind(navigator);
+
+    navigator.getGamepads = function() {
+      const realGamepads = originalGetGamepads();
+      const fakeGamepads = [];
+
+      for (let i = 0; i < realGamepads.length; i++) {
+        const gp = realGamepads[i];
+        if (!gp) {
+          fakeGamepads[i] = null;
+          continue;
+        }
+
+        // Remap your Razer Wolverine (1532:0a2e) or unrecognized pad
+        fakeGamepads[i] = {
+          id: "Xbox 360 Controller (Standard Gamepad)",
+          index: gp.index,
+          connected: gp.connected,
+          timestamp: gp.timestamp,
+          mapping: "standard", // Forces Unity WebGL to treat it as standard XInput
+          axes: [
+            gp.axes[0] || 0, // Left Stick X
+            gp.axes[1] || 0, // Left Stick Y
+            gp.axes[2] || 0, // Right Stick X
+            gp.axes[3] || 0  // Right Stick Y
+          ],
+          buttons: [
+            gp.buttons[0] || { pressed: false, value: 0 }, // A
+            gp.buttons[1] || { pressed: false, value: 0 }, // B
+            gp.buttons[2] || { pressed: false, value: 0 }, // X
+            gp.buttons[3] || { pressed: false, value: 0 }, // Y
+            gp.buttons[4] || { pressed: false, value: 0 }, // LB
+            gp.buttons[5] || { pressed: false, value: 0 }, // RB
+            gp.buttons[6] || { pressed: false, value: 0 }, // LT
+            gp.buttons[7] || { pressed: false, value: 0 }, // RT
+            gp.buttons[8] || { pressed: false, value: 0 }, // Select / Back
+            gp.buttons[9] || { pressed: false, value: 0 }, // Start
+            gp.buttons[10] || { pressed: false, value: 0 }, // L3
+            gp.buttons[11] || { pressed: false, value: 0 }, // R3
+            gp.buttons[12] || { pressed: false, value: 0 }, // D-Pad Up
+            gp.buttons[13] || { pressed: false, value: 0 }, // D-Pad Down
+            gp.buttons[14] || { pressed: false, value: 0 }, // D-Pad Left
+            gp.buttons[15] || { pressed: false, value: 0 }  // D-Pad Right
+          ]
+        };
+      }
+      return fakeGamepads;
+    };
+  })();
+</script>
+  <script>
+    
+    canvas = document.getElementById("unity-canvas");
+    loadingText = document.getElementById("loading-text");
+    mobileWarning = document.getElementById("unity-mobile-warning");
+    // Mobile Viewport Check
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      const meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=device-width,height=device-height,initial-scale=1,user-scalable=no,shrink-to-fit=yes';
+      document.head.appendChild(meta);
+
+      mobileWarning.style.display = "block";
+      setTimeout(() => mobileWarning.style.display = "none", 5000);
+    }
+
+    
+    // Main Unity WebGL initialization using combined files
+    (async () => {
+      const loaderScript = document.createElement("script");
+      loaderScript.src = "Build/hk.loader.js";
+
+      loaderScript.onload = () => {
+        createUnityInstance(canvas, {
+          dataUrl: "Build/hk.data",
+          frameworkUrl: "Build/hk.framework.js",
+          codeUrl: "Build/hk.wasm",
+          streamingAssetsUrl: "StreamingAssets",
+          companyName: "Team Cherry",
+          productName: "Hollow Knight",
+          productVersion: "1.0"
+        }).then((instance) => {
+          unityInstance = instance;
+          window.unityInstance = instance;
+          window.Module = instance.Module;
+          window.FS = instance.Module && instance.Module.FS;
+          loadingText.remove();
+
+        }).catch(alert);
+      };
+
+      document.body.appendChild(loaderScript);
+    })();
+
+  </script>
+</body>
+</html>
